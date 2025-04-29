@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Try-On</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    video, canvas, img {
+      width: 100%;
+      max-width: 300px;
+      margin-bottom: 10px;
+    }
+    .shirt-slider {
+      display: flex;
+      overflow-x: auto;
+      gap: 10px;
+    }
+    .shirt-slider img {
+      width: 100px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .shirt-slider img:hover {
+      border-color: #007bff;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+<h1>👕 AI Try-On</h1>
+
+{% if error %}
+  <p style="color: red;">{{ error }}</p>
+{% endif %}
+
+<form method="POST" enctype="multipart/form-data" id="tryon-form">
+
+  <h3>📸 Capture or Upload Avatar Image</h3>
+  <video id="camera" autoplay playsinline></video>
+  <button type="button" onclick="takePicture()">📷 Take Picture</button>
+  <canvas id="snapshot" style="display: none;"></canvas>
+  <img id="avatar-preview" alt="Avatar Preview">
+  <input type="file" name="avatar_image" accept="image/*" id="avatar-upload" style="display: none;">
+
+  <select name="avatar_sex">
+    <option value="">Select Gender</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+  </select>
+  <input type="text" name="avatar_prompt" placeholder="Avatar Prompt (optional)">
+
+  <h3>👚 Upload or Choose Clothing</h3>
+  <input type="file" name="clothing_image" accept="image/*" id="clothing-upload">
+  <input type="text" name="clothing_prompt" placeholder="Clothing Prompt (optional)">
+
+  <div class="shirt-slider">
+    <img src="{{ url_for('static', filename='shirt1.jpg') }}" onclick="chooseShirt('shirt1.jpg')">
+    <img src="{{ url_for('static', filename='shirt2.jpg') }}" onclick="chooseShirt('shirt2.jpg')">
+    <!-- Add more shirts if needed -->
+  </div>
+
+  <h3>🌄 Optional Background</h3>
+  <input type="file" name="background_image" accept="image/*">
+  <input type="text" name="background_prompt" placeholder="Background Prompt (optional)">
+
+  <input type="number" name="seed" placeholder="Seed (optional)" value="-1">
+  <button type="submit">🎨 Generate Try-On Image</button>
+</form>
+
+{% if result_image %}
+  <h2>🖼️ Result</h2>
+  <img src="{{ result_image }}" alt="Generated Result" style="max-width: 100%;">
+{% endif %}
+
+<script>
+  const video = document.getElementById('camera');
+  const canvas = document.getElementById('snapshot');
+  const avatarPreview = document.getElementById('avatar-preview');
+  const avatarInput = document.getElementById('avatar-upload');
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      console.error("Camera access denied:", err);
+    });
+
+  function takePicture() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataURL = canvas.toDataURL('image/jpeg');
+    avatarPreview.src = dataURL;
+
+    fetch(dataURL)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        avatarInput.files = dataTransfer.files;
+      });
+  }
+
+  function chooseShirt(filename) {
+    fetch(`/static/shirts/${filename}`)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], filename, { type: "image/jpeg" });
+        const clothingInput = document.getElementById('clothing-upload');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        clothingInput.files = dataTransfer.files;
+      });
+  }
+</script>
+
+</body>
+</html>
